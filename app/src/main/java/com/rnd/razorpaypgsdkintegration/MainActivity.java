@@ -9,8 +9,17 @@ import android.widget.Toast;
 
 import com.razorpay.Checkout;
 import com.razorpay.PaymentResultListener;
+import com.rnd.razorpaypgsdkintegration.razorpaysdk.InterceptorHTTPClientCreator;
+import com.rnd.razorpaypgsdkintegration.razorpaysdk.RazorPaySdk;
+import com.rnd.razorpaypgsdkintegration.razorpaysdk.Service;
+import com.rnd.razorpaypgsdkintegration.responses.InsertOrderResponse;
+import com.rnd.razorpaypgsdkintegration.responses.PaymentSuccessDetailsResponse;
 
 import org.json.JSONObject;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 //Card NO - 4111111111111111
 //Expiry - 07/22
@@ -30,10 +39,27 @@ public class MainActivity extends AppCompatActivity implements PaymentResultList
     }
 
     public void onClickPay(View view) {
-        startPayment();
+        InterceptorHTTPClientCreator.createInterceptorHTTPClient(getApplicationContext());
+        Service service = new RazorPaySdk.Builder().build(this).getService();
+        service.insertOrder("Rec_123456", "50000", "INR").enqueue(
+                new Callback<InsertOrderResponse>() {
+                    @Override
+                    public void onResponse(Call<InsertOrderResponse> call, Response<InsertOrderResponse> response) {
+                        startPayment(response.body().getOrder().getOrderId(),
+                                response.body().getOrder().getAmount(),
+                                response.body().getOrder().getCurrency(),
+                                response.body().getOrder().getReceipt());
+                    }
+
+                    @Override
+                    public void onFailure(Call<InsertOrderResponse> call, Throwable t) {
+                        Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
     }
 
-    public void startPayment() {
+    public void startPayment(String orderId, String amount, String currency, String receipt) {
         /**
          * Instantiate Checkout
          */
@@ -59,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements PaymentResultList
              * Merchant Name
              * eg: ACME Corp || HasGeek etc.
              */
-            options.put("name", "Merchant Name");
+            options.put("name", "Razor");
 
             /**
              * Description can be anything
@@ -67,19 +93,19 @@ public class MainActivity extends AppCompatActivity implements PaymentResultList
              *     Invoice Payment
              *     etc.
              */
-            options.put("description", "Order #123456");
+            options.put("description", "Order: " + receipt);
 
-            options.put("currency", "INR");
+            options.put("currency", currency);
 
             /**
              * Amount is always passed in PAISE
              * Eg: "500" = Rs 5.00
              */
-            options.put("amount", "500");
+            options.put("amount", amount);
             options.put("handler", "Yes");
             //https://docs.razorpay.com/v1/page/orders
 //            Order ID generated via Orders API
-//            options.put("order_id", "123456");
+            options.put("order_id", orderId);
 //            Invoice ID generated via Payment link/Invoices API
 //            options.put("invoice_id", "INV123456");
             checkout.setFullScreenDisable(true);
@@ -98,7 +124,21 @@ public class MainActivity extends AppCompatActivity implements PaymentResultList
     @Override
     public void onPaymentSuccess(String s) {
         Toast.makeText(this, "Result: " + s, Toast.LENGTH_SHORT).show();
+        InterceptorHTTPClientCreator.createInterceptorHTTPClient(getApplicationContext());
+        Service service = new RazorPaySdk.Builder().build(this).getService();
+        service.getPaymentSuccessDetails(s).enqueue(
+                new Callback<PaymentSuccessDetailsResponse>() {
+                    @Override
+                    public void onResponse(Call<PaymentSuccessDetailsResponse> call, Response<PaymentSuccessDetailsResponse> response) {
+                        Toast.makeText(MainActivity.this, response.body().toString(), Toast.LENGTH_LONG).show();
+                    }
 
+                    @Override
+                    public void onFailure(Call<PaymentSuccessDetailsResponse> call, Throwable t) {
+                        Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_LONG).show();
+                    }
+                }
+        );
 //        Checkout.clearUserData(this);
     }
 
