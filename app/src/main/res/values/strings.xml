@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">RazorPay PG SDK Integration</string>
-    <string name="base_url">http://192.168.10.33/razorpay/process</string>
+    <string name="base_url">http://192.168.10.33/razorpay/process/</string>
 </resources>
